@@ -1,252 +1,166 @@
-import math
 import random
-from time import sleep
 import pygame
+from time import sleep
 import pygame.freetype
+import math
 
-
-class Map:
-    def __init__(self):
-        pygame.display.set_caption("Drone simulator")
+class Board:
+    def __init__(self, bg_color, background_name="ocean1.jpg"):
+        pygame.display.set_caption("lily")
         self.screen = pygame.display.set_mode((1280, 720))
-        self.screen.fill(Ocean_Blue)
-        self.all_drones = []
-        self.all_buoys = []
+        self.background_image = pygame.image.load(background_name)
+        # self.screen.fill(Ocean_Blue)
         self.font = pygame.freetype.Font("JetBrains.ttf", 24)
-    
-    def what_quad(self, loc):
-        x, y = loc[0], loc[1]
-        if (x > 0 and y > 0): 
-            return [-1, -1]
-    
-        elif (x < 0 and y > 0): 
-            return [1, -1]
-            
-        elif (x < 0 and y < 0): 
-            return [1, 1]
-        
-        elif (x > 0 and y < 0): 
-            return [-1, 1]
-            
-        elif (x == 0 and y > 0): 
-            return [0, -1]
-        
-        elif (x == 0 and y < 0): 
-            return [0, 1]
-        
-        elif (y == 0 and x < 0): 
-            return [1, 0]
-        
-        elif (y == 0 and x > 0): 
-            return [-1, 0]
-        
-        else:
-            return True
-  
-    def draw_drone(self, drone_cfg):
-        battery_text = f"Battery level {drone_cfg[0]}%"
-        name = "Drone"
-        loc = drone_cfg[-1]
-        pygame.draw.circle(self.screen, Black, loc, 5, 0)
-        pygame.draw.circle(self.screen, Red, loc, drone_cfg[-2], 1)
-        pygame.draw.rect(self.screen, White, (loc[0], loc[1], 250, 50))
-        self.font.render_to(
-            self.screen,(loc[0] + 1, loc[1] + 5), battery_text, Black)
+        pygame.display.flip()
+        self.all_lilys = []
+        self.all_birds = []
+        self.to_delete = []
 
-        self.font.render_to(
-            self.screen, (loc[0] + 1, loc[1] + 30), name, Black)
-
-    def draw_buoy(self, buoy_cfg):
-        recharge_rate = buoy_cfg[0]
-        recharge_rate_text = f"Recharge {recharge_rate}u/s"
-        name = "buoy"
-        loc = buoy_cfg[-1]
-        pygame.draw.circle(self.screen, Green, loc, 25, 0)
-        
-        pygame.draw.rect(
-            self.screen, White, (loc[0] - 110, loc[1] - 75, 220, 50))
-
-        self.font.render_to(
-            self.screen, (loc[0] - 108, loc[1] - 73), recharge_rate_text, Black)
-
-        self.font.render_to(
-            self.screen, (loc[0] - 108, loc[1] - 48), name, Black)
-
-    def update(self):
-        pygame.draw.rect(self.screen, White, (0, 0, 750, 100))
+    def _draw_text(self, help_text):
+        pygame.draw.rect(self.screen, White, (0, 0, 1280, 100))
         off_y = -25
         for text in help_text:
             off_y += 30
             self.font.render_to(self.screen,(5, off_y), text, Black)
+    
+    def _is_dead(self, obj):
+        x, y = obj[0]
+        if x <= 0 or y <= 0 or x >= 1280 or y >= 720:
+            return True
 
-        to_delete = []
-        for buoy_cfg in self.all_buoys:
-            b_x = buoy_cfg[-1][0]
-            b_y = buoy_cfg[-1][1]
+        pix_val = self.screen.get_at([x, y])
 
-            if b_x < 0 or b_y < 0:
-                to_delete.append(buoy_cfg)
-                continue            
-            
-            elif b_x > 1280 or b_y > 720:
-                to_delete.append(buoy_cfg)
-                continue
-            
-            self.draw_buoy(buoy_cfg)
+        if pix_val != (0, 170, 255, 255):
+            return True
 
-        for drone_cfg in self.all_drones:
-            charge = drone_cfg[0]
-            d_x = drone_cfg[-1][0]
-            d_y = drone_cfg[-1][1]
-            m_x = drone_cfg[-3][0]
-            m_y = drone_cfg[-3][1]
-            
-            # Checking if current x or y is out of bounds
-            if d_x < 0 or d_y < 0:
-                to_delete.append(drone_cfg)
-                continue            
-            
-            elif d_x > 1280 or d_y > 720:
-                to_delete.append(drone_cfg)
-                continue
-            
-            # Checking if battery level is 55 or below
-            if charge <= 55:
-                if charge <= 0:
-                    to_delete.append(drone_cfg)    
+    def update(self, help_text):
+        fps_time = Board._fps_to_sec(24)
+
+        while True:
+            self.screen.blit(self.background_image, [0, 0])
+
+            for obj in self.all_lilys:
+                Board._draw_lily(self.screen, obj)
+
+            Board._draw_text(self, help_text)
+
+            for obj in self.all_birds:
+                ret = Board._is_dead(self, obj)
+                
+                if ret == True:
+                    self.to_delete.append(obj)
                     continue
-                if len(self.all_buoys) > 0:
-                    b_x = self.all_buoys[0][-1][0]
-                    b_y = self.all_buoys[0][-1][1]
-                    closest = math.sqrt(
-                        (b_x - d_x) ** 2 + (b_y - d_y) ** 2)
-                    
-                    for buoy_cfg in self.all_buoys:
-                        b_x = buoy_cfg[-1][0]
-                        b_y = buoy_cfg[-1][1]
-                        distance = math.sqrt(
-                            (b_x - d_x) ** 2 + (b_y - d_y) ** 2)
-                        
-                        rel_pos = d_x - b_x, d_y - b_y
-                        
-                        if distance <= closest:
-                            closest = distance
-                            current = buoy_cfg
-                            rel_pos = d_x - b_x, d_y - b_y
-                        
-                        print(f"b {b_x} {b_y}")
-                        print(f"d {d_x} {d_y}")
-                        print(rel_pos)
 
-                        ret = self.what_quad(rel_pos)
-                        print(ret)
-                        # ret[0], ret[1] = ret[1], ret[0]
-                        
-                        if ret == True:
-                            drone_cfg[0] += buoy_cfg[0]
-                        else:
-                            m_x = ret[0]
-                            m_y = ret[1]
+                Board._draw_bird(self, self.screen, obj)
+            
+            for event in pygame.event.get():
+                screen.events(event)
 
-            # Random movement
-            drone_cfg[-1][0] += m_x
-            drone_cfg[-1][1] += m_y
-            drone_cfg[0] -= 1 if random.randint(0, 2) == 1 else 0 
-            self.draw_drone(drone_cfg)
+            pygame.display.flip()
+            sleep(fps_time) # 1000 / fps = time between each frame (millisec)
+            Board.reset(self)
+
+    def reset(self):
+        for obj in self.to_delete:
+            self.all_birds.remove(obj)
         
-        for drone_cfg in to_delete:
-            Drone.delete_drone(self, drone_cfg)
+        del self.to_delete[:]
 
-class Drone:
-    def create_drone(Map_object, battery=100 , module="b", loc=[0, 0]):
-        """module options are currently (b)ase, (c)amera, (s)onar, (cu)stom"""
-        if module == "b":
-            search_area = 0
-        elif module == "c":
-            search_area = 50
-        elif module == "s":
-            search_area = 10
+    def _create_lily(pos):
+        noise_range = 50
+        return pos, noise_range
+    
+    def _create_bird(self):
+        while True:
+            pos = [random.randint(50, 1230), random.randint(50, 670)]
+            direction = random.choice([
+                [-1, 0], [0, 1], [1, 0], [0, -1], 
+                [1, 1], [-1, -1], [1, -1], [-1, 1]])
+            
+            ret = Board._is_dead(self, (pos, direction))
+            if ret:
+                continue
+            break
+        return pos, direction
+    
+    def _del_obj(head):
+        if len(head) >= 1:
+            head.pop()
         else:
-            search_area = 500
+            print("nothing to remove")
+    
+    def _fps_to_sec(fps):
+        return (1000 / fps) / 1000
+    
+    def _draw_lily(screen, obj):
+        loc = obj[0]
+        noise_range = obj[1]
+        pygame.draw.circle(screen, D_Green, loc, 10, 0)
+        pygame.draw.circle(screen, Red, loc, noise_range, 2)
+    
+    def _draw_bird(self, screen, obj):
+        x, y = obj[0]
+        x_diff, y_diff = obj[1]
 
-        direction = random.choice([(-1, 0), (0, 1), (1, 0), (0, -1)])
-        Map_object.all_drones.append(
-            [battery, module, direction, search_area, loc])
-    
-    def delete_latest_drone(Map_object):
-        all_drones = Map_object.all_drones
-        if len(all_drones) >= 1:
-            Map_object.all_drones.pop()
-        else:
-            print("Nothing to delete")
-    
-    def delete_drone(Map_object, drone_cfg):
-        Map_object.all_drones.remove(drone_cfg)
+        if len(self.all_lilys) >= 1:
+            for lily in self.all_lilys:
+                x2, y2 = lily[0]
+                distance = math.sqrt((x - x2) ** 2 + (y - y2) ** 2)
+                if distance < 60:
+                    x_diff, y_diff = -x_diff, -y_diff
+                    obj[1][0] = x_diff
+                    obj[1][1] = y_diff
+
+        x, y = x + x_diff, y + y_diff
+        
+        pygame.draw.circle(screen, Gray, (x, y), 10, 0)
+        obj[0][0] = x
+        obj[0][1] = y
 
 
-class Buoy:
-    def create_buoy(Map_object, recharging_speed=1, loc=[0, 0]):
-        Map_object.all_buoys.append(
-        [recharging_speed, loc])
-    
-    def delete_latest_buoy(Map_object):
-        all_buoys = Map_object.all_buoys
-        if len(all_buoys) >= 1:
-            Map_object.all_buoys.pop()
-        else:
-            print("Nothing to delete")
-    
-    
+    def events(self, event):
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_l:
+                print("l")
+                Board._del_obj(self.all_lilys)
 
+            elif event.key == pygame.K_b:
+                print("b")
+                self.all_birds.append(Board._create_bird(self))
+
+            elif event.key == pygame.K_k:
+                print("k")
+                Board._del_obj(self.all_birds)
+
+            elif event.key in [pygame.K_q, pygame.K_ESCAPE]:
+                print("q or esc")
+                exit()
+        
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            print("mouse down")
+            pos = pygame.mouse.get_pos()
+            self.all_lilys.append(Board._create_lily(pos))
+        
+        elif event.type == pygame.QUIT:
+            print("x")
+            exit()
 
 if __name__ == "__main__":
     Black = (0, 0, 0)
+    Gray = (100, 100, 100)
     White = (255, 255, 255)
     Red = (255, 0, 0)
     Green = (0, 255, 0)
+    D_Green = (0, 155, 0)
+    Blue = (0, 0, 255)
     Ocean_Blue = (0, 105, 148)
-    Purple = (255, 0, 255)
-    Yellow = (0, 255, 255)
 
     pygame.init()
-    board = Map()
     help_text = [
-        "A to spawn drones, D to delete the most recent drone!",
-        "Z to spawn a buoy, C to delete the most recent buoy!",
+        "use your mouse left click to spawn B.P.M, l to delete the most recent B.P.M!",
+        "b to spawn a bird, k to delete the most recent bird!",
         "Q to quit or press the x on the top left!"]
 
-    while True:
-        board.screen.fill(Ocean_Blue)
-        board.update()
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_a:
-                    print("Add drone")
-                    loc = [random.randint(0, 1280), random.randint(0, 720)]
-                    module = random.choice(["b", "c", "s"])
-                    Drone.create_drone(board, module=module, loc=loc)
+    screen = Board(Ocean_Blue, "ocean1.jpg")
 
-                elif event.key == pygame.K_d:
-                    print("Delete drone")
-                    Drone.delete_latest_drone(board)
-
-                elif event.key == pygame.K_z:
-                    print("Add buoy")
-                    loc = [random.randint(200, 1080), random.randint(100, 620)]
-                    watt_out = random.randint(1, 5)
-                    Buoy.create_buoy(board, recharging_speed=watt_out, loc=loc)
-
-                elif event.key == pygame.K_c:
-                    print("Delete buoy")
-                    Buoy.delete_latest_buoy(board)
-
-                elif event.key == pygame.K_q:
-                    print("q_exit")
-                    exit()
-
-            if event.type == pygame.QUIT:
-                    print("x_exit")
-                    exit()
-
-        pygame.display.flip()
-        sleep(0.04166) # 1000 / fps = duration during each frame (in milliseconds)
+    screen.update(help_text)
