@@ -10,7 +10,7 @@ All the tools necessary to run the code
 
 - [__pip3__](https://pip.pypa.io/en/stable/)
 - [__Python >= 3.7.4__](https://www.python.org)
-- [__pygame__](https://openchttps://www.pygame.org/news)
+- [__pygame__==2.0.0.dev6](https://openchttps://www.pygame.org/news)
 
 
 run this code to install the packages
