@@ -85,17 +85,18 @@ class Board:
     def color(self):
         level1 = self.levels[0]
         level2 = self.levels[1]
+        lowest = level1 if level1 < level2 else level2
 
-        if level1 >= 75 or level2 >= 75:
+        if lowest >= 75:
             return DBlue
         
-        elif level1 >= 51 or level2 >= 51:
+        elif lowest >= 51:
             return (0, 255, 0)
         
-        elif level1 >= 26 or level2 >= 26:
+        elif lowest >= 26:
             return (255, 255, 0)
         
-        elif level1 >= 0 or level2 >= 0:
+        elif lowest >= 0:
             return (255, 0, 0)
 
 
