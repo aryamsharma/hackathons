@@ -98,12 +98,10 @@ class Board:
                 self.screen, White, (x - 10, y + 35, 310, 50))
             pygame.draw.rect(
                 self.screen, self.what_color(val), (x - 5, y + 40, val * 3, 40))
-            # pygame.draw.rect(
-            #     self.screen, self.what_color(val), (x - 25, y - 15, 410, 115), 8)
-            # pygame.draw.rect(
-            #     self.screen, self.what_color(val), (x + 385, y - 18, 50, 122))
+            pygame.draw.rect(
+                self.screen, self.what_color(val), (x - 25, y - 15, 410, 115), 8)
 
-            y += 120
+            y += 140
 
         y = 60
         for problem in self.events:
